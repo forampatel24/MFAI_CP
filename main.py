@@ -55,7 +55,7 @@ print(data.head())
 # APPLY RULES TO ONE SAMPLE ROW
 # -----------------------------------
 
-sample = data.iloc[50]
+sample = data.iloc[350]
 
 rules = evaluate_rules(sample)
 decision = make_decision(rules)
