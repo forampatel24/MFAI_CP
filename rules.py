@@ -40,4 +40,11 @@ def evaluate_rules(row):
     rules["R12_low_alcohol"] = row["Dalc"] <= 2
     rules["R13_low_social"] = row["goout"] <= 3
 
+    rules["R14_very_low_final"] = row["final_grade"] < 8
+
+    rules["R15_very_low_mid"] = row["grade2"] < 8
+    rules["R16_poor_attendance"] = row["attendance"] < 50
+    rules["R17_no_study"] = row["studytime"] == 1
+    rules["R18_high_risk_lifestyle"] = row["goout"] >= 4 and row["Dalc"] >= 4
+
     return rules
