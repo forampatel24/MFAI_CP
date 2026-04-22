@@ -1,50 +1,104 @@
-def evaluate_rules(row):
-    rules = {}
+# rules.py
 
-    # -------------------------------
-    # CORE ACADEMIC (G1, G2, G3)
-    # -------------------------------
-    rules["R1_final_pass"] = row["final_grade"] >= 10
-    rules["R2_final_excellent"] = row["final_grade"] >= 15
+def extract_facts(row):
+    """
+    Convert student data into propositional logic facts
+    """
 
-    rules["R3_mid_term_good"] = row["grade2"] >= 10
-    rules["R4_first_term_good"] = row["grade1"] >= 10
+    facts = {
+        # -------------------------------
+        # ACADEMIC
+        # -------------------------------
+        "A": row["final_grade"] >= 10,   # pass
+        "B": row["final_grade"] >= 15,   # excellent
+        "C": row["grade2"] >= 10,
+        "D": row["grade1"] >= 10,
+        "E": row["grade2"] >= row["grade1"],  # improving
+        "F": abs(row["grade2"] - row["grade1"]) <= 2,  # consistent
 
-    rules["R5_improving_trend"] = row["grade2"] >= row["grade1"]
-    rules["R6_consistent_performance"] = abs(row["grade2"] - row["grade1"]) <= 2
+        # -------------------------------
+        # FAILURES
+        # -------------------------------
+        "G": row["failures"] <= 1,
+        "H": row["failures"] > 2,
 
-    # -------------------------------
-    # FAILURES
-    # -------------------------------
-    rules["R7_low_failures"] = row["failures"] <= 1
-    rules["R8_high_failures"] = row["failures"] > 2
+        # -------------------------------
+        # ATTENDANCE
+        # -------------------------------
+        "I": row["attendance"] >= 75,
+        "P": row["attendance"] < 50,
 
-    # -------------------------------
-    # ATTENDANCE
-    # -------------------------------
-    rules["R9_good_attendance"] = row["attendance"] >= 75
+        # -------------------------------
+        # STUDY
+        # -------------------------------
+        "J": row["studytime"] >= 3,
+        "Q": row["studytime"] == 1,
 
-    # -------------------------------
-    # STUDY
-    # -------------------------------
-    rules["R10_good_studytime"] = row["studytime"] >= 3
+        # -------------------------------
+        # SUPPORT
+        # -------------------------------
+        "K": row["schoolsup"] == 1 or row["famsup"] == 1,
 
-    # -------------------------------
-    # SUPPORT
-    # -------------------------------
-    rules["R11_support"] = row["schoolsup"] == 1 or row["famsup"] == 1
+        # -------------------------------
+        # LIFESTYLE
+        # -------------------------------
+        "L": row["Dalc"] <= 2,
+        "M": row["goout"] <= 3,
+        "R": row["goout"] >= 4 and row["Dalc"] >= 4,
 
-    # -------------------------------
-    # LIFESTYLE
-    # -------------------------------
-    rules["R12_low_alcohol"] = row["Dalc"] <= 2
-    rules["R13_low_social"] = row["goout"] <= 3
+        # -------------------------------
+        # CRITICAL FAIL CONDITIONS
+        # -------------------------------
+        "N": row["final_grade"] < 8,
+        "O": row["grade2"] < 8
+    }
 
-    rules["R14_very_low_final"] = row["final_grade"] < 8
+    return facts
 
-    rules["R15_very_low_mid"] = row["grade2"] < 8
-    rules["R16_poor_attendance"] = row["attendance"] < 50
-    rules["R17_no_study"] = row["studytime"] == 1
-    rules["R18_high_risk_lifestyle"] = row["goout"] >= 4 and row["Dalc"] >= 4
+
+def get_rules():
+    """
+    Logical rules (Propositional Logic)
+    """
+
+    rules = [
+
+        # ===============================
+        # STRONG PASS CONDITIONS
+        # ===============================
+        ("PASS", "A AND I AND G"),              # basic strong condition
+        ("PASS", "B AND I"),                    # excellent student
+        ("PASS", "A AND C AND D"),              # all exams good
+        ("PASS", "A AND E AND F"),              # improving & consistent
+        ("PASS", "A AND J AND I"),              # studies well + attendance
+        ("PASS", "A AND K AND G"),              # support + low failures
+
+        # ===============================
+        # MODERATE PASS CONDITIONS
+        # ===============================
+        ("PASS", "A AND C AND I"),              # mid + final good
+        ("PASS", "A AND D AND G"),              # first term + low failures
+        ("PASS", "A AND L AND M"),              # good lifestyle
+        ("PASS", "A AND F AND I"),              # consistency + attendance
+
+        # ===============================
+        # FAIL CONDITIONS (STRONG)
+        # ===============================
+        ("FAIL", "H"),                          # high failures
+        ("FAIL", "N"),                          # very low final
+        ("FAIL", "P AND H"),                    # poor attendance + failures
+        ("FAIL", "Q AND N"),                    # no study + bad grade
+        ("FAIL", "R"),                          # bad lifestyle
+
+        # ===============================
+        # FAIL CONDITIONS (MODERATE)
+        # ===============================
+        ("FAIL", "NOT A AND O"),                # weak overall performance
+        ("FAIL", "NOT I AND H"),                # low attendance + failures
+        ("FAIL", "NOT J AND N"),                # low study + bad final
+        ("FAIL", "P AND Q"),                    # poor attendance + no study
+        ("FAIL", "O AND D == False"),           # weak mid + weak base
+
+    ]
 
     return rules

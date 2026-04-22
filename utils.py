@@ -1,47 +1,79 @@
-def make_decision(rules):
+# utils.py
 
-    # Hard fail
-    if rules["R8_high_failures"]:
-        return "FAIL"
+def evaluate_expression(expression, facts):
+    """
+    Evaluate logical expression using facts
+    """
 
-    score = 0
+    expr = expression.replace("AND", "and") \
+                     .replace("OR", "or") \
+                     .replace("NOT", "not")
 
-    # Academic (MOST IMPORTANT)
-    if rules["R1_final_pass"]:
-        score += 2
-    if rules["R2_final_excellent"]:
-        score += 1
-    if rules["R3_mid_term_good"]:
-        score += 1
-    if rules["R4_first_term_good"]:
-        score += 1
+    try:
+        return eval(expr, {}, facts)
+    except Exception:
+        return False
 
-    # Trend
-    if rules["R5_improving_trend"]:
-        score += 0.5
-    if rules["R6_consistent_performance"]:
-        score += 0.5
 
-    # Failures
-    if rules["R7_low_failures"]:
-        score += 1
+def infer(facts, rules):
+    """
+    Evaluate all rules and return triggered ones
+    """
 
-    # Attendance
-    if rules["R9_good_attendance"]:
-        score += 1
+    triggered = []
 
-    # Study
-    if rules["R10_good_studytime"]:
-        score += 0.5
+    for outcome, expression in rules:
+        if evaluate_expression(expression, facts):
+            triggered.append((outcome, expression))
 
-    # Support
-    if rules["R11_support"]:
-        score += 0.5
+    return triggered
 
-    # Lifestyle
-    if rules["R12_low_alcohol"]:
-        score += 0.5
-    if rules["R13_low_social"]:
-        score += 0.5
 
-    return "PASS" if score >= 5 else "FAIL"
+def score_rules(facts, rules):
+    """
+    Improved scoring using BOTH satisfied and unsatisfied rules
+    """
+
+    pass_score = 0
+    fail_score = 0
+
+    for outcome, expr in rules:
+
+        # Evaluate rule
+        result = evaluate_expression(expr, facts)
+
+        # Rule strength
+        strength = expr.count("AND") + 1
+
+        if outcome == "PASS":
+            if result:
+                pass_score += strength
+            else:
+                fail_score += strength * 0.5   # penalty
+
+        elif outcome == "FAIL":
+            if result:
+                fail_score += strength
+            else:
+                pass_score += strength * 0.5   # penalty
+
+    return pass_score, fail_score
+
+def make_decision(facts, rules):
+    """
+    Final decision using logical inference + rule strength
+    """
+
+    triggered = infer(facts, rules)
+
+    pass_score, fail_score = score_rules(facts, rules)
+
+    # Decision logic
+    if fail_score > pass_score:
+        decision = "FAIL"
+    elif pass_score > fail_score:
+        decision = "PASS"
+    else:
+        decision = "FAIL"  # safe fallback
+
+    return decision, triggered, pass_score, fail_score

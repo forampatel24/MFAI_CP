@@ -1,15 +1,18 @@
+# stability.py
+
 import random
-from rules import evaluate_rules
+from rules import extract_facts, get_rules
 from utils import make_decision
+from confidence import calculate_confidence
 
 
 # -----------------------------------
-# PERTURB INPUT (REALISTIC VARIATION)
+# MONTE CARLO PERTURBATION
 # -----------------------------------
 def perturb_input(row):
     new_row = row.copy()
 
-    # Academic variations (IMPORTANT)
+    # Academic variation
     new_row["final_grade"] += random.uniform(-3, 3)
     new_row["grade2"] += random.uniform(-3, 3)
     new_row["grade1"] += random.uniform(-3, 3)
@@ -20,22 +23,20 @@ def perturb_input(row):
     # Failures
     new_row["failures"] += random.choice([-1, 0, 1])
 
-    # Study behavior
+    # Study
     new_row["studytime"] += random.choice([-1, 0, 1])
 
     # Lifestyle
     new_row["goout"] += random.choice([-1, 0, 1])
     new_row["Dalc"] += random.choice([-1, 0, 1])
 
-    # Support (flip sometimes)
+    # Support flip
     if random.random() < 0.3:
         new_row["schoolsup"] = 1 - new_row["schoolsup"]
     if random.random() < 0.3:
         new_row["famsup"] = 1 - new_row["famsup"]
 
-    # -------------------------------
-    # CLAMP VALUES (VERY IMPORTANT)
-    # -------------------------------
+    # Clamp values
     new_row["final_grade"] = max(0, min(20, new_row["final_grade"]))
     new_row["grade2"] = max(0, min(20, new_row["grade2"]))
     new_row["grade1"] = max(0, min(20, new_row["grade1"]))
@@ -51,16 +52,20 @@ def perturb_input(row):
 
 
 # -----------------------------------
-# STABILITY CALCULATION
+# ROBUSTNESS ANALYSIS
 # -----------------------------------
-def calculate_stability(original_row, iterations=100):
+def calculate_robustness(original_row, iterations=100):
 
-    original_rules = evaluate_rules(original_row)
-    original_decision = make_decision(original_rules)
+    rules = get_rules()
+
+    # Original evaluation
+    facts = extract_facts(original_row)
+    decision, _, pass_score, fail_score = make_decision(facts, rules)
+    base_confidence, _, _ = calculate_confidence(decision, pass_score, fail_score)
 
     unchanged = 0
+    confidence_changes = []
 
-    # Track feature sensitivity
     feature_impact = {
         "final_grade": 0,
         "grade2": 0,
@@ -76,17 +81,28 @@ def calculate_stability(original_row, iterations=100):
 
         perturbed = perturb_input(original_row)
 
-        rules = evaluate_rules(perturbed)
-        new_decision = make_decision(rules)
+        facts_p = extract_facts(perturbed)
+        new_decision, _, p_score, f_score = make_decision(facts_p, rules)
 
-        if new_decision == original_decision:
+        new_confidence, _, _ = calculate_confidence(new_decision, p_score, f_score)
+
+        # Decision stability
+        if new_decision == decision:
             unchanged += 1
-        else:
-            # Track what changed most
+
+        # Confidence variation
+        confidence_changes.append(abs(new_confidence - base_confidence))
+
+        # Feature sensitivity
+        if new_decision != decision:
             for key in feature_impact:
                 if abs(perturbed[key] - original_row[key]) > 0:
                     feature_impact[key] += 1
 
-    stability = (unchanged / iterations) * 100
+    robustness = (unchanged / iterations) * 100
+    avg_conf_change = (
+        sum(confidence_changes) / len(confidence_changes)
+        if confidence_changes else 0
+    )
 
-    return stability, unchanged, iterations, feature_impact
+    return robustness, avg_conf_change, feature_impact
