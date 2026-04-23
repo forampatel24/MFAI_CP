@@ -98,31 +98,36 @@ if mode == "Single Student":
     st.write("### Selected Student Data")
     st.dataframe(sample.to_frame().T, use_container_width=True)
 
-    rule_map = {
-        "A": "Final Grade ≥ 10 (Pass)",
-        "B": "Final Grade ≥ 15 (Excellent)",
-        "C": "Mid-Term ≥ 10",
-        "D": "First-Term ≥ 10",
-        "E": "Improving Performance",
-        "F": "Consistent Marks",
-        "G": "Low Failures (≤1)",
-        "H": "High Failures (>2)",
-        "I": "Good Attendance (≥75%)",
-        "J": "Study Time ≥ 3",
-        "K": "Support Available",
-        "L": "Low Alcohol Consumption",
-        "M": "Low Social Activity",
-        "N": "Very Low Final Grade",
-        "O": "Very Low Mid-Term",
-        "P": "Poor Attendance",
-        "Q": "No Study",
-        "R": "High Risk Lifestyle"
-    }
+    rule_explanations = {
 
-    def translate_rule(expr):
-        for key, value in rule_map.items():
-            expr = expr.replace(key, value)
-        return expr
+        # PASS RULES
+        "A AND I AND G": "Student has good final grade, good attendance, and low failures",
+        "B AND I": "Student has excellent final grade and strong attendance",
+        "A AND C AND D": "Student performed well across all exams",
+        "A AND E AND F": "Student is improving and consistent",
+        "A AND J AND I": "Student studies well and maintains good attendance",
+        "A AND K AND G": "Student has support and low failures",
+        "A AND X AND Y": "Student has average attendance and moderate study effort",
+        "A AND G AND X": "Student has low failures and acceptable attendance",
+        "A AND C AND I": "Student has strong mid-term and attendance",
+        "A AND D AND G": "Student has good base and low failures",
+        "A AND L AND M": "Student maintains a healthy lifestyle",
+        "A AND F AND I": "Student is consistent and attends regularly",
+
+        # FAIL RULES
+        "H": "Student has too many failures",
+        "N": "Final grade is critically low",
+        "P AND H": "Poor attendance combined with failures",
+        "Q AND N": "No study effort and very low performance",
+        "R": "Risky lifestyle affecting performance",
+        "NOT A AND O": "Weak overall academic performance",
+        "NOT I AND H": "Low attendance and high failures",
+        "NOT J AND N": "Low study effort and very low final grade",
+        "P AND Q": "Poor attendance and no study",
+        "O AND NOT D": "Weak mid-term and weak base",
+        "P AND Y": "Low attendance despite moderate study",
+        "Z AND NOT J": "Moderate failures and insufficient study"
+    }
 
 
     if st.button("🚀 Run Analysis"):
@@ -148,60 +153,79 @@ if mode == "Single Student":
         col2.metric("Confidence", f"{confidence:.2f}%")
         col3.metric("Stability", f"{robustness:.2f}%")
 
+        # -----------------------------------
+        # WHY DECISION (CLEAN + DEDUPLICATED)
+        # -----------------------------------
         st.write("### 🧠 Why this decision?")
 
-        if not triggered:
-            st.warning("No strong conditions satisfied.")
-        else:
-            for outcome, expr in triggered:
-                readable = translate_rule(expr)
+        pass_explanations = set()
+        fail_explanations = set()
 
-                if outcome == "PASS":
-                    st.success(f"✔ {readable}")
-                else:
-                    st.error(f"✘ {readable}")
+        for outcome, expr in triggered:
 
-        st.write("### 📊 Interpretation")
+            explanation = rule_explanations.get(expr, expr)
 
-        if decision == "PASS":
-            st.success("The student is likely to PASS.")
-        else:
-            st.error("The student is at risk of FAILING.")
+            if outcome == "PASS":
+                pass_explanations.add(explanation)
+            else:
+                fail_explanations.add(explanation)
 
-        if confidence > 75:
-            st.info("The system is highly confident in this decision.")
-        elif confidence > 50:
-            st.warning("The decision is moderately certain.")
-        else:
-            st.error("The decision is uncertain and should be reviewed.")
 
-        st.write("### 🔁 Stability of Decision")
 
-        if robustness > 80:
-            st.success("The decision is very stable. Small changes will not affect it.")
-        elif robustness > 60:
-            st.warning("The decision is somewhat stable but may change.")
-        else:
-            st.error("The decision is unstable and sensitive to changes.")
+        # PASS SECTION
+        # PASS
+        if pass_explanations:
+            st.markdown("#### ✅ Conditions Supporting PASS")
+            for e in pass_explanations:
+                st.markdown(f"- {e}")
 
-        st.write(f"Average confidence variation during testing: {avg_conf_change:.2f}")
+        # FAIL
+        if fail_explanations:
+            st.markdown("#### ❌ Conditions Supporting FAIL")
+            for e in fail_explanations:
+                st.markdown(f"- {e}")
 
-        st.write("### ⚠️ What influenced this decision?")
+        if not pass_explanations and not fail_explanations:
+            st.warning("No strong rules were triggered for this student.")
 
-        important = {k: v for k, v in impact.items() if v > 0}
-
-        if not important:
-            st.write("No specific feature had strong impact.")
-        else:
-            for feature, count in important.items():
-                st.write(f"• {feature} influenced decision ({count} times)")
-
+        # -----------------------------------
+        # SUGGESTION
+        # -----------------------------------
         st.write("### 💡 Suggestion")
 
         if decision == "FAIL":
             st.write("Improving attendance, reducing failures, and increasing study time can improve results.")
         else:
             st.write("Maintain current performance and consistency to sustain success.")
+
+        # -----------------------------------
+        # EVIDENCE
+        # -----------------------------------
+        st.write("### 📊 Evidence Summary")
+        st.write(f"PASS Score: {pass_score:.2f}")
+        st.write(f"FAIL Score: {fail_score:.2f}")
+
+        st.write("### 📉 Confidence Sensitivity")
+
+        if avg_conf_change < 5:
+            st.success(f"Very stable confidence ({avg_conf_change:.2f}%)")
+        elif avg_conf_change < 15:
+            st.warning(f"Moderate sensitivity ({avg_conf_change:.2f}%)")
+        else:
+            st.error(f"High sensitivity ({avg_conf_change:.2f}%)")
+
+        # -----------------------------------
+        # FEATURE IMPACT (STABILITY)
+        # -----------------------------------
+        st.write("### ⚠️ What affected the decision during stability testing?")
+
+        important = {k: v for k, v in impact.items() if v > 0}
+
+        if not important:
+            st.write("No feature significantly affected the decision.")
+        else:
+            for feature, count in sorted(important.items(), key=lambda x: -x[1]):
+                st.write(f"• {feature} influenced the decision {count} times")
 
 
 # =========================================================

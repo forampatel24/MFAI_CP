@@ -20,18 +20,21 @@ def extract_facts(row):
         # FAILURES
         # -------------------------------
         "G": row["failures"] <= 1,
+        "Z": row["failures"] == 2,
         "H": row["failures"] > 2,
 
         # -------------------------------
         # ATTENDANCE
         # -------------------------------
         "I": row["attendance"] >= 75,
+        "X": 50 <= row["attendance"] < 75,
         "P": row["attendance"] < 50,
 
         # -------------------------------
         # STUDY
         # -------------------------------
         "J": row["studytime"] >= 3,
+        "Y": row["studytime"] == 2,
         "Q": row["studytime"] == 1,
 
         # -------------------------------
@@ -71,7 +74,10 @@ def get_rules():
         ("PASS", "A AND C AND D"),              # all exams good
         ("PASS", "A AND E AND F"),              # improving & consistent
         ("PASS", "A AND J AND I"),              # studies well + attendance
-        ("PASS", "A AND K AND G"),              # support + low failures
+        ("PASS", "A AND K AND G"),
+        ("PASS", "A AND X AND Y"),  # average but still stable
+        ("PASS", "A AND G AND X"),  # moderate failures but decent attendance
+        # support + low failures
 
         # ===============================
         # MODERATE PASS CONDITIONS
@@ -97,7 +103,10 @@ def get_rules():
         ("FAIL", "NOT I AND H"),                # low attendance + failures
         ("FAIL", "NOT J AND N"),                # low study + bad final
         ("FAIL", "P AND Q"),                    # poor attendance + no study
-        ("FAIL", "O AND D == False"),           # weak mid + weak base
+        ("FAIL", "O AND NOT D"),
+        ("FAIL", "P AND Y"),  # low attendance even with moderate study
+        ("FAIL", "Z AND NOT J"),  # borderline failures + low study
+        # weak mid + weak base
 
     ]
 

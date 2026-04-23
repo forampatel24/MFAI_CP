@@ -1,19 +1,25 @@
+import math
+
 def calculate_confidence(decision, pass_score, fail_score):
     """
-    Compute conditional probability with smoothing
+    Scaled softmax to avoid extreme 100% confidence
     """
 
-    epsilon = 1e-6
-    total = pass_score + fail_score
+    # SCALE DOWN scores (IMPORTANT)
+    scale = 10   # <-- adjust this
 
-    if total == 0:
-        return 0, 0, 0
+    p = pass_score / scale
+    f = fail_score / scale
 
-    prob_pass = (pass_score + epsilon) / (total + 2 * epsilon)
-    prob_fail = (fail_score + epsilon) / (total + 2 * epsilon)
+    max_score = max(p, f)
 
-    prob_pass *= 100
-    prob_fail *= 100
+    exp_pass = math.exp(p - max_score)
+    exp_fail = math.exp(f - max_score)
+
+    total = exp_pass + exp_fail
+
+    prob_pass = (exp_pass / total) * 100
+    prob_fail = (exp_fail / total) * 100
 
     confidence = prob_pass if decision == "PASS" else prob_fail
 

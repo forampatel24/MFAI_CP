@@ -2,7 +2,7 @@
 
 def evaluate_expression(expression, facts):
     """
-    Evaluate logical expression using facts
+    Evaluate logical expression using facts safely
     """
 
     expr = expression.replace("AND", "and") \
@@ -10,11 +10,14 @@ def evaluate_expression(expression, facts):
                      .replace("NOT", "not")
 
     try:
-        return eval(expr, {}, facts)
-    except Exception:
+        return eval(expr, {"__builtins__": None}, facts)
+    except Exception as e:
         return False
 
 
+# -----------------------------------
+# INFERENCE
+# -----------------------------------
 def infer(facts, rules):
     """
     Evaluate all rules and return triggered ones
@@ -29,9 +32,31 @@ def infer(facts, rules):
     return triggered
 
 
+# -----------------------------------
+# IMPROVED SCORING SYSTEM
+# -----------------------------------
+def compute_strength(expr):
+    """
+    Better rule strength calculation
+    """
+
+    and_count = expr.count("AND")
+    or_count = expr.count("OR")
+    not_count = expr.count("NOT")
+
+    # AND = strong constraint
+    # OR = weaker
+    # NOT = slight complexity
+
+    return (and_count * 2) + (or_count * 1) + (not_count * 0.5) + 1
+
+
 def score_rules(facts, rules):
     """
-    Improved scoring using BOTH satisfied and unsatisfied rules
+    Improved scoring using:
+    - rule strength
+    - partial penalties
+    - balanced reasoning
     """
 
     pass_score = 0
@@ -39,29 +64,30 @@ def score_rules(facts, rules):
 
     for outcome, expr in rules:
 
-        # Evaluate rule
         result = evaluate_expression(expr, facts)
-
-        # Rule strength
-        strength = expr.count("AND") + 1
+        strength = compute_strength(expr)
 
         if outcome == "PASS":
             if result:
                 pass_score += strength
             else:
-                fail_score += strength * 0.5   # penalty
+                fail_score += strength * 0.4   # softer penalty
 
         elif outcome == "FAIL":
             if result:
                 fail_score += strength
             else:
-                pass_score += strength * 0.5   # penalty
+                pass_score += strength * 0.4   # softer penalty
 
     return pass_score, fail_score
 
+
+# -----------------------------------
+# FINAL DECISION
+# -----------------------------------
 def make_decision(facts, rules):
     """
-    Final decision using logical inference + rule strength
+    Final decision using logical inference + improved scoring
     """
 
     triggered = infer(facts, rules)
@@ -74,6 +100,6 @@ def make_decision(facts, rules):
     elif pass_score > fail_score:
         decision = "PASS"
     else:
-        decision = "FAIL"  # safe fallback
+        decision = "FAIL"  # conservative fallback
 
     return decision, triggered, pass_score, fail_score

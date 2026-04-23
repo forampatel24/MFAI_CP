@@ -7,60 +7,107 @@ from confidence import calculate_confidence
 
 
 # -----------------------------------
-# MONTE CARLO PERTURBATION
+# CONTROLLED PERTURBATION
 # -----------------------------------
 def perturb_input(row):
     new_row = row.copy()
 
-    # Academic variation
-    new_row["final_grade"] += random.uniform(-3, 3)
-    new_row["grade2"] += random.uniform(-3, 3)
-    new_row["grade1"] += random.uniform(-3, 3)
+    changed = False  # track if anything changed
 
-    # Attendance
-    new_row["attendance"] += random.uniform(-15, 15)
+    # -------------------------------
+    # FINAL GRADE
+    # -------------------------------
+    if random.random() < 0.4:
+        new_row["final_grade"] = random.choice([5, 9, 12, 16])
+        changed = True
 
-    # Failures
-    new_row["failures"] += random.choice([-1, 0, 1])
+    # -------------------------------
+    # MID & FIRST GRADE
+    # -------------------------------
+    if random.random() < 0.4:
+        new_row["grade2"] = random.choice([5, 9, 12, 16])
+        changed = True
 
-    # Study
-    new_row["studytime"] += random.choice([-1, 0, 1])
+    if random.random() < 0.4:
+        new_row["grade1"] = random.choice([5, 9, 12, 16])
+        changed = True
 
-    # Lifestyle
-    new_row["goout"] += random.choice([-1, 0, 1])
-    new_row["Dalc"] += random.choice([-1, 0, 1])
+    # -------------------------------
+    # ATTENDANCE
+    # -------------------------------
+    if random.random() < 0.5:
+        new_row["attendance"] = random.choice([40, 60, 85])
+        changed = True
 
-    # Support flip
+    # -------------------------------
+    # FAILURES
+    # -------------------------------
+    if random.random() < 0.4:
+        new_row["failures"] = random.choice([0, 2, 3])
+        changed = True
+
+    # -------------------------------
+    # STUDY TIME
+    # -------------------------------
+    if random.random() < 0.4:
+        new_row["studytime"] = random.choice([1, 2, 3, 4])
+        changed = True
+
+    # -------------------------------
+    # LIFESTYLE
+    # -------------------------------
+    if random.random() < 0.4:
+        new_row["goout"] = random.choice([1, 3, 5])
+        changed = True
+
+    if random.random() < 0.4:
+        new_row["Dalc"] = random.choice([1, 3, 5])
+        changed = True
+
+    # -------------------------------
+    # SUPPORT
+    # -------------------------------
     if random.random() < 0.3:
-        new_row["schoolsup"] = 1 - new_row["schoolsup"]
+        new_row["schoolsup"] = random.choice([0, 1])
+        changed = True
+
     if random.random() < 0.3:
-        new_row["famsup"] = 1 - new_row["famsup"]
+        new_row["famsup"] = random.choice([0, 1])
+        changed = True
 
-    # Clamp values
-    new_row["final_grade"] = max(0, min(20, new_row["final_grade"]))
-    new_row["grade2"] = max(0, min(20, new_row["grade2"]))
-    new_row["grade1"] = max(0, min(20, new_row["grade1"]))
+    # -------------------------------
+    # FORCE CHANGE (IMPORTANT)
+    # -------------------------------
+    if not changed:
+        # force one meaningful category jump
+        feature = random.choice([
+            "final_grade",
+            "attendance",
+            "studytime"
+        ])
 
-    new_row["attendance"] = max(0, min(100, new_row["attendance"]))
-    new_row["failures"] = max(0, new_row["failures"])
+        if feature == "final_grade":
+            new_row["final_grade"] = random.choice([5, 9, 12, 16])
 
-    new_row["studytime"] = max(1, min(4, new_row["studytime"]))
-    new_row["goout"] = max(1, min(5, new_row["goout"]))
-    new_row["Dalc"] = max(1, min(5, new_row["Dalc"]))
+        elif feature == "attendance":
+            new_row["attendance"] = random.choice([40, 60, 85])
+
+        elif feature == "studytime":
+            new_row["studytime"] = random.choice([1, 2, 3, 4])
 
     return new_row
 
 
 # -----------------------------------
-# ROBUSTNESS ANALYSIS
+# ROBUSTNESS ANALYSIS (IMPROVED)
 # -----------------------------------
 def calculate_robustness(original_row, iterations=100):
 
     rules = get_rules()
 
     # Original evaluation
-    facts = extract_facts(original_row)
-    decision, _, pass_score, fail_score = make_decision(facts, rules)
+    original_facts = extract_facts(original_row)
+    decision, _, pass_score, fail_score = make_decision(original_facts, rules)
     base_confidence, _, _ = calculate_confidence(decision, pass_score, fail_score)
 
     unchanged = 0
@@ -81,25 +128,43 @@ def calculate_robustness(original_row, iterations=100):
 
         perturbed = perturb_input(original_row)
 
-        facts_p = extract_facts(perturbed)
-        new_decision, _, p_score, f_score = make_decision(facts_p, rules)
+        new_facts = extract_facts(perturbed)
+        new_decision, _, p_score, f_score = make_decision(new_facts, rules)
 
         new_confidence, _, _ = calculate_confidence(new_decision, p_score, f_score)
 
-        # Decision stability
+        # ---------------------------
+        # Decision Stability
+        # ---------------------------
         if new_decision == decision:
             unchanged += 1
 
-        # Confidence variation
+        # ---------------------------
+        # Confidence Change
+        # ---------------------------
         confidence_changes.append(abs(new_confidence - base_confidence))
 
-        # Feature sensitivity
+        # ---------------------------
+        # FACT-LEVEL SENSITIVITY
+        # ---------------------------
         if new_decision != decision:
+
             for key in feature_impact:
-                if abs(perturbed[key] - original_row[key]) > 0:
+
+                # Compare original vs perturbed feature
+                if new_decision != decision and perturbed[key] != original_row[key]:
                     feature_impact[key] += 1
 
-    robustness = (unchanged / iterations) * 100
+            # Bonus: detect fact-level change
+            fact_changes = sum(
+                1 for f in original_facts
+                if original_facts[f] != new_facts[f]
+            )
+
+    decision_flips = iterations - unchanged
+
+    robustness = (1 - (decision_flips / iterations)) * 100
+
     avg_conf_change = (
         sum(confidence_changes) / len(confidence_changes)
         if confidence_changes else 0
