@@ -90,6 +90,7 @@ Uses **Monte Carlo simulation with fact-level perturbation**.
 
 Measures how confidence reacts to perturbations:
 ![img_1.png](images/img_1.png)
+
 👉 Helps detect:
 
 * Overconfident predictions
