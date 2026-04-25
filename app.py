@@ -5,6 +5,7 @@ from rules import extract_facts, get_rules
 from utils import make_decision
 from confidence import calculate_confidence
 from stability import calculate_robustness
+from fol import fol_inference
 
 # -----------------------------------
 # PAGE CONFIG
@@ -214,6 +215,18 @@ if mode == "Single Student":
         else:
             st.error(f"High sensitivity ({avg_conf_change:.2f}%)")
 
+
+        st.write("### 🔗 Relational Insights (FOL-based)")
+
+        results = fol_inference(data, row_index)
+
+        if not results:
+            st.info("No conclusions derived")
+        else:
+            for r in results:
+                st.write(f"• {r['result']}")
+                st.caption(f"FOL: {r['fol']}")
+
         # -----------------------------------
         # FEATURE IMPACT (STABILITY)
         # -----------------------------------
@@ -298,11 +311,29 @@ else:
 
                 robustness, _, _ = calculate_robustness(row, iterations=30)
 
+                # -------------------------------
+                # FOL INFERENCE
+                # -------------------------------
+                fol_results = fol_inference(data, i)
+
+                if fol_results:
+                    fol_text = "; ".join([r["result"] for r in fol_results])
+                    fol_count = len(fol_results)
+                else:
+                    fol_text = "None"
+                    fol_count = 0
+
+
+
                 results.append({
                     "Student_ID": i,
                     "Final_Result": decision,
                     "Confidence (%)": round(confidence, 2),
                     "Stability (%)": round(robustness, 2),
+
+                    # NEW FOL FIELDS
+                    "FOL_Count": fol_count,
+                    "FOL_Insights": fol_text,
 
                     "Grade1": row["grade1"],
                     "Grade2": row["grade2"],
@@ -343,7 +374,7 @@ else:
 
             filter_option = st.selectbox(
                 "Select Category",
-                ["All", "PASS", "FAIL", "Low Confidence (<60%)"]
+                ["All", "PASS", "FAIL", "Low Confidence (<60%)", "High Risk (FOL)"]
             )
 
             filtered_df = results_df.copy()
@@ -356,6 +387,9 @@ else:
 
             elif filter_option == "Low Confidence (<60%)":
                 filtered_df = results_df[results_df["Confidence (%)"] < 60]
+
+            elif filter_option == "High Risk (FOL)":
+                filtered_df = results_df[results_df["FOL_Insights"].str.contains("risk", case=False)]
 
             # -----------------------------------
             # DISPLAY TABLE
@@ -370,7 +404,8 @@ else:
 
             risky = results_df[
                 (results_df["Final_Result"] == "FAIL") |
-                (results_df["Confidence (%)"] < 60)
+                (results_df["Confidence (%)"] < 60) |
+                (results_df["FOL_Insights"].str.contains("risk", case=False))
                 ]
 
             if len(risky) > 0:
@@ -379,6 +414,8 @@ else:
                     "Student_ID",
                     "Final_Result",
                     "Confidence (%)",
+                    "FOL_Count",  # NEW
+                    "FOL_Insights",  # NEW
                     "Grade1",
                     "Grade2",
                     "Final_Grade",

@@ -20,7 +20,7 @@ st.markdown("Explainable AI using Logic, Confidence & Stability")
 @st.cache_data
 def load_data():
     data = pd.read_csv(
-        r"C:\Foram\ENG_SY\SEM2\MFAI\CP\MFAI_CP\data\student-mat.csv",
+        r"/MFAI_CP/data/student-mat.csv",
         sep=";"
     )
 

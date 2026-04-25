@@ -4,6 +4,7 @@ from rules import extract_facts, get_rules
 from utils import make_decision
 from confidence import calculate_confidence
 from stability import calculate_robustness
+from fol import fol_analysis
 
 
 # -------------------------------
@@ -146,6 +147,17 @@ def analyze_student(sample):
     else:
         for feature, count in sorted(important.items(), key=lambda x: -x[1]):
             print(f"• {feature} → {count} times")
+
+    print("\n🔗 FOL INSIGHTS (Relational Analysis)")
+    print("--------------------------------------------------")
+
+    insights = fol_analysis(data, index)
+
+    if not insights:
+        print("No additional relational insights")
+    else:
+        for i in insights:
+            print(f"• {i}")
 
 
 # -------------------------------
