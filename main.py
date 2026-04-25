@@ -4,7 +4,7 @@ from rules import extract_facts, get_rules
 from utils import make_decision
 from confidence import calculate_confidence
 from stability import calculate_robustness
-from fol import fol_analysis
+from fol import fol_inference
 
 
 # -------------------------------
@@ -80,7 +80,7 @@ def load_data():
 # -------------------------------
 # ANALYSIS FUNCTION
 # -------------------------------
-def analyze_student(sample):
+def analyze_student(sample, data, index):
 
     facts = extract_facts(sample)
     rules = get_rules()
@@ -148,16 +148,18 @@ def analyze_student(sample):
         for feature, count in sorted(important.items(), key=lambda x: -x[1]):
             print(f"• {feature} → {count} times")
 
+
     print("\n🔗 FOL INSIGHTS (Relational Analysis)")
     print("--------------------------------------------------")
 
-    insights = fol_analysis(data, index)
+    fol_results = fol_inference(data, index)
 
-    if not insights:
+    if not fol_results:
         print("No additional relational insights")
     else:
-        for i in insights:
-            print(f"• {i}")
+        for r in fol_results:
+            print(f"• {r['result']}")
+            print(f"   FOL: {r['fol']}")
 
 
 # -------------------------------
@@ -190,7 +192,7 @@ def main():
             continue
 
         sample = data.iloc[index]
-        analyze_student(sample)
+        analyze_student(sample, data, index)
 
 
 # -------------------------------

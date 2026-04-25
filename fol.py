@@ -1,4 +1,4 @@
-from MFAI_CP.fol_engine import FOLEngine
+from fol_engine import FOLEngine
 
 
 def fol_inference(data, student_index):
